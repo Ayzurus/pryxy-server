@@ -1,0 +1,1 @@
+call pyinstaller -F --clean src\proxyserver.py
