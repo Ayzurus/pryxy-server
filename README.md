@@ -1,4 +1,4 @@
-# Pryxy Server
+# <img src="./pryxy.svg" width=8%> Pryxy Server
 
 Cross platform simple python proxy server for HTTP, up to version 1.1, related application testing and development.
 
