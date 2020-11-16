@@ -1,0 +1,23 @@
+# Pryxy Server
+
+## To Do
+
+- [ ] Support http 2.0+
+- [ ] Support file paths for http body, instead of only text based files (also send files)
+- [ ] Support automated Content-Type header identification
+- [ ] Support multiple rule files
+- [ ] Support multiple message flows instead of only request-response behavior
+- [ ] Add compilation to binary for increased performance
+- [ ] Add request header validations
+- [ ] Add client capabilities (send requests and receive responses)
+- [ ] Add more complex information like time between messages, payload size, header log, etc
+- [ ] Create a GUI wrapper version
+- [ ] Unit tests
+- [ ] Integration and development pipeline
+- [ ] Support other protocols (MQTT, SIP, etc...)
+- [ ] ???Integrate with wireshark???
+- [ ] ???Generate message flow log???
+
+## Done
+
+- [x] Add http base handler
