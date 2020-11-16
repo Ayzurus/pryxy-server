@@ -1,0 +1,11 @@
+{
+    "GET /": {
+        "code": 200,
+        "Content-Type": "text/plain",
+        "body": "Hello World!"
+    },
+    "*": {
+        "code": 404,
+        "reason": "By default I find nothing"
+    }
+}
