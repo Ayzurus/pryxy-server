@@ -1,0 +1,7 @@
+{
+    "GET /": {
+        "code": 200,
+        "Content-Type": "text/plain",
+        "body": "Hello World!"
+    }
+}
