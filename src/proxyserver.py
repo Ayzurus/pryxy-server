@@ -7,16 +7,16 @@ ___________________
 by:
 Ayzurus
 """
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 import sys
-import safeprint
 import argparse
 import time
 import signal
 import socket
 import handlers.jsonrules
 import handlers.httphandler
+from utils import safeprint
 from threading import Thread
 from socketserver import TCPServer
 
@@ -53,7 +53,6 @@ class ProxyServer(Thread, CustomTCPServer):
         
     def await_shutdown(self):
         """awaits for a shutdown signal to proceed"""
-        time.sleep(0.1)
         safeprint.log("awaiting proxy shutdown...")
         while self._active:
             time.sleep(ProxyServer.THREAD_POLL_INTERVAL)

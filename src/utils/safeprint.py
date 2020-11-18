@@ -13,6 +13,7 @@ from threading import Lock
 from datetime import datetime
 
 _PRINT_LOCK = Lock()
+_PRINT_FORMAT = "[%s] %s: %s"
 _prints_verb = False
 _prints_debug = False
 
@@ -24,7 +25,7 @@ def setup(prints_verb: bool, prints_debug: bool):
 
 def _print(level, *text, **args):
     with _PRINT_LOCK:
-        print("[" + str(datetime.now()) + "] " + level + ": " + str(*text), **args)
+        print(_PRINT_FORMAT % (str(datetime.now()), level, str(*text)), **args)
 
 def error(*text, **args):
     _print("ERROR", *text, **args)

@@ -12,8 +12,6 @@
 - [ ] Add client capabilities (send requests and receive responses)
 - [ ] Add more complex information like time between messages, payload size, header log, etc
 - [ ] Create a GUI wrapper version
-- [ ] Unit tests
-- [ ] Integration and development pipeline
 - [ ] Support other protocols (MQTT, SIP, etc...)
 - [ ] ???Integrate with wireshark???
 - [ ] ???Generate message flow log???
@@ -21,3 +19,5 @@
 ## Done
 
 - [x] Add http base handler
+- [x] Integration and development pipeline
+- [x] Initial Unit tests
