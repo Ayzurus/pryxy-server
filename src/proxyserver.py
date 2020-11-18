@@ -13,25 +13,35 @@ import sys
 import safeprint
 import argparse
 import time
+import signal
+import struct
 import handlers.jsonrules
 import handlers.httphandler
 from threading import Thread
 from socketserver import TCPServer
 
+
 PROTO = {
     "http": handlers.httphandler.HttpHandler
 }
 
-class ProxyServer(Thread, TCPServer):
+class NonBlockingTCPServer(TCPServer):
+    def __init__(self, addr, handler):
+        TCPServer.__init__(self, addr, handler)
+
+class ProxyServer(Thread, NonBlockingTCPServer):
     THREAD_NAME = "pryxy-server"
-    THREAD_POLL_INTERVAL = 5
+    THREAD_POLL_INTERVAL = 2
 
     def __init__(self, host: str, port: int, proto: str):
         Thread.__init__(self)
-        TCPServer.__init__(self, (host, port), PROTO[proto])
+        NonBlockingTCPServer.__init__(self, (host, port), PROTO[proto])
         self._active = False
         self._proto = proto
         self.setName(ProxyServer.THREAD_NAME)
+        self._shutdown_signal = False
+        signal.signal(signal.SIGINT, self._close)
+        signal.signal(signal.SIGTERM, self._close)
     
     def run(self):
         safeprint.log("starting listener {}".format(str(self)))
@@ -40,24 +50,19 @@ class ProxyServer(Thread, TCPServer):
         safeprint.log("listener closed")
         
     def await_shutdown(self):
-        """
-        awaits for a shutdown request from the CLI, in parallel, 
-        to deactivate and close the proxy
-        """
+        """awaits for a shutdown signal to proceed"""
         time.sleep(0.1)
         safeprint.log("awaiting proxy shutdown...")
         while self._active:
-            if sys.stdin.read(1) != "":
-                safeprint.log("[0] shutting down proxy...")
-                self.shutdown()
-                self._active = False
-        count = 1
-        time.sleep(0.1)
-        while self.is_alive():
-            safeprint.log("[{}] shutting down proxy...".format(count))
-            count += 1
-            time.sleep(1)
-                
+            time.sleep(ProxyServer.THREAD_POLL_INTERVAL)
+
+    def _close(self, signum, frame):
+        if not self._shutdown_signal:
+            self._shutdown_signal = True
+            safeprint.log("received SIG %i, shutting down proxy..." % signum)
+            self.shutdown()
+            self._active = False
+
     def __str__(self):
         return ProxyServer.THREAD_NAME + ("@%s:%d proto: " % self.socket.getsockname() + self._proto)
     
