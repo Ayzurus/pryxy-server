@@ -20,6 +20,7 @@ from http import HTTPStatus
 from socket import timeout
 from utils import safeprint
 
+
 class HttpHandler(BaseHTTPRequestHandler):
     server_version = "Pryxy-HttpHandler/" + __version__
     WILDCARD = "*"
@@ -33,17 +34,17 @@ class HttpHandler(BaseHTTPRequestHandler):
             code = code.value
         if isinstance(code, int):
             self.log_message('%s Response %s - "%s" %s',
-                            self.address_string(), str(code), self.requestline, str(size))
+                             self.address_string(), str(code), self.requestline, str(size))
         else:
             self.log_message('%s Request "%s" %s',
-                            self.address_string(), self.requestline, str(size))
+                             self.address_string(), self.requestline, str(size))
 
     def log_error(self, format, *args):
         self.log_message(format, *args)
 
     def log_message(self, format, *args):
         safeprint.log(format % args)
-        
+
     def parse_request(self):
         """Parse a request (internal).
 
@@ -64,8 +65,8 @@ class HttpHandler(BaseHTTPRequestHandler):
         words = requestline.split()
         # the request requires at least the command and path of the URI
         if len(words) < 2:
-            self.send_error(HTTPStatus.BAD_REQUEST, 
-                    "The request requires at least the command and path")
+            self.send_error(HTTPStatus.BAD_REQUEST,
+                            "The request requires at least the command and path")
             return False
         # if the protocol version is present, check it
         # otherwise ignore it and attempt to respond anyway
@@ -74,15 +75,17 @@ class HttpHandler(BaseHTTPRequestHandler):
             try:
                 if version.startswith('HTTP/'):
                     version_number = version.split('/', 1)[1].split(".")
-                    version_number = int(version_number[0]), int(version_number[1])
+                    version_number = int(version_number[0]), int(
+                        version_number[1])
                     # only supported up to http/1.x
                     if version_number >= (2, 0):
-                        self.send_error(HTTPStatus.HTTP_VERSION_NOT_SUPPORTED, 
-                                "Pryxy does not support version %s" % version)
+                        self.send_error(HTTPStatus.HTTP_VERSION_NOT_SUPPORTED,
+                                        "Pryxy does not support version %s" % version)
                         return False
                     self.request_version = version
             except (ValueError, IndexError):
-                self.log_error("could not parse the protocol version, ignoring...")
+                self.log_error(
+                    "could not parse the protocol version, ignoring...")
         self.command, self.path = words[:2]
         # Examine the headers and look for a Connection directive.
         try:
@@ -152,10 +155,11 @@ class HttpHandler(BaseHTTPRequestHandler):
             safeprint.debug("http response rule = %s" % response)
             code = int(response["code"])
             if code > 399:
-                self.send_error(code, response["reason"] if "reason" in response else "")
+                self.send_error(
+                    code, response["reason"] if "reason" in response else "")
             else:
                 self.send_response(code)
-            for header in [(k,v) for k,v in response.items() if k not in ("code", "reason", "body")]:
+            for header in [(k, v) for k, v in response.items() if k not in ("code", "reason", "body")]:
                 self.send_header(header[0], header[1])
             if "body" in response:
                 self.body = str(response["body"])
@@ -167,7 +171,8 @@ class HttpHandler(BaseHTTPRequestHandler):
                 self.wfile.write(self.body.encode("UTF-8", "strict"))
             return
         # In case no rule is configured for the request, send default error
-        self.send_error(HTTPStatus.NOT_IMPLEMENTED, "No rules found for the given Request/URI")
+        self.send_error(HTTPStatus.NOT_IMPLEMENTED,
+                        "No rules found for the given Request/URI")
 
     def handle_one_request(self):
         """Handle a single HTTP request."""
@@ -186,9 +191,9 @@ class HttpHandler(BaseHTTPRequestHandler):
             if self.parse_request():
                 self._respond()
             # actually send the response if not already done
-            self.wfile.flush() 
+            self.wfile.flush()
         except timeout as e:
-            #a read or a write timed out.  Discard this connection
+            # a read or a write timed out.  Discard this connection
             self.log_error("Request timed out: %r", e)
             self.send_error(HTTPStatus.REQUEST_TIMEOUT)
             self.close_connection = True
