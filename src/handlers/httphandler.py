@@ -15,6 +15,7 @@ __version__ = "0.4.0"
 
 import handlers.jsonrules
 import logging
+import html
 import http.client
 from http.server import BaseHTTPRequestHandler
 from http import HTTPStatus
@@ -53,12 +54,47 @@ class HttpHandler(BaseHTTPRequestHandler):
             headers_str = ""
             if isinstance(headers, self.MessageClass):
                 for header in headers:
-                    headers_str += "%s: %s\n" % (header, headers.get(header, ""))
+                    headers_str += "%s: %s\n" % (header,
+                                                 headers.get(header, ""))
             elif isinstance(headers, list):
                 for header in headers[1:]:
                     headers_str += header.decode('iso-8859-1')
             if headers_str:
                 __logger__.debug("headers:\n%s", headers_str)
+
+    def send_error(self, code, message=None, explain=None):
+        """Send and log an error reply."""
+        try:
+            shortmsg, longmsg = self.responses[code]
+        except KeyError:
+            shortmsg, longmsg = '???', '???'
+        if message is None:
+            message = shortmsg
+        if explain is None:
+            explain = longmsg
+        self.send_response(code, message)
+        self.send_header('Connection', 'close')
+        # Message body is omitted for cases described in:
+        #  - RFC7230: 3.3. 1xx, 204(No Content), 304(Not Modified)
+        #  - RFC7231: 6.3.6. 205(Reset Content)
+        body = None
+        if (code >= 200 and
+            code not in (HTTPStatus.NO_CONTENT,
+                         HTTPStatus.RESET_CONTENT,
+                         HTTPStatus.NOT_MODIFIED)):
+            # HTML encode to prevent Cross Site Scripting attacks
+            # (see bug #1100201)
+            content = (self.error_message_format % {
+                'code': code,
+                'message': html.escape(message, quote=False),
+                'explain': html.escape(explain, quote=False)
+            })
+            body = content.encode('UTF-8', 'replace')
+            self.send_header("Content-Type", self.error_content_type)
+            self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        if self.command != 'HEAD' and body:
+            self.wfile.write(body)
 
     def parse_request(self):
         """Parse a request (internal).
@@ -81,6 +117,8 @@ class HttpHandler(BaseHTTPRequestHandler):
         words = requestline.split()
         # the request requires at least the command and path of the URI
         if len(words) < 2:
+            __logger__.error(
+                "ERROR: The request requires at least the command and path, responding 400")
             self.send_error(HTTPStatus.BAD_REQUEST,
                             "The request requires at least the command and path")
             return False
@@ -95,6 +133,8 @@ class HttpHandler(BaseHTTPRequestHandler):
                         version_number[1])
                     # only supported up to http/1.x
                     if version_number >= (2, 0):
+                        __logger__.error(
+                            "ERROR: HTTP versions 2.0+ are not supported, responding 505")
                         self.send_error(HTTPStatus.HTTP_VERSION_NOT_SUPPORTED,
                                         "Pryxy does not support version %s" % version)
                         return False
@@ -108,12 +148,14 @@ class HttpHandler(BaseHTTPRequestHandler):
             self.headers = http.client.parse_headers(self.rfile,
                                                      _class=self.MessageClass)
         except http.client.LineTooLong as err:
+            __logger__.error("ERROR: Header field too long, responding 431")
             self.send_error(
                 HTTPStatus.REQUEST_HEADER_FIELDS_TOO_LARGE,
                 "Line too long",
                 str(err))
             return False
         except http.client.HTTPException as err:
+            __logger__.error("ERROR: Too many headers, responding 431")
             self.send_error(
                 HTTPStatus.REQUEST_HEADER_FIELDS_TOO_LARGE,
                 "Too many headers",
@@ -132,6 +174,7 @@ class HttpHandler(BaseHTTPRequestHandler):
         if (expect.lower() == "100-continue" and
                 self.protocol_version >= "HTTP/1.1" and
                 self.request_version >= "HTTP/1.1"):
+            __logger__.info("Expected 100 Continue, sending it")
             if not self.handle_expect_100():
                 return False
         self._log_headers(self.headers)
@@ -154,14 +197,15 @@ class HttpHandler(BaseHTTPRequestHandler):
                         else:
                             uri = rule[0:uri_wildcard_id]
                             uri_found = uri_requestline.startswith(uri)
-                    else:  
+                    else:
                         uri_found = uri_requestline == uri
                     if uri_found:
                         __logger__.debug("http response rule found")
                         return self._rules[rule]
             # If no rules match the request, test if there is a wildcard rule DEFAULT
             if not uri_found and HttpHandler.WILDCARD in self._rules:
-                __logger__.debug("NO specific http response rule found, using '*'")
+                __logger__.debug(
+                    "NO specific http response rule found, using '*'")
                 return self._rules[HttpHandler.WILDCARD]
         __logger__.debug("NO http response rule found, sending 501")
         return None
@@ -191,6 +235,8 @@ class HttpHandler(BaseHTTPRequestHandler):
                 self.wfile.write(self.body.encode("UTF-8", "strict"))
             return
         # In case no rule is configured for the request, send default error
+        __logger__.error(
+            "ERROR: No rules for the given Request/URI, responding 501")
         self.send_error(HTTPStatus.NOT_IMPLEMENTED,
                         "No rules found for the given Request/URI")
 
@@ -202,6 +248,7 @@ class HttpHandler(BaseHTTPRequestHandler):
                 self.requestline = ''
                 self.request_version = ''
                 self.command = ''
+                __logger__.error("ERROR: URI is too long, responding 414")
                 self.send_error(HTTPStatus.REQUEST_URI_TOO_LONG)
                 return
             if not self.raw_requestline:
@@ -214,7 +261,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             self.wfile.flush()
         except timeout as e:
             # a read or a write timed out.  Discard this connection
-            self.log_error("Request timed out: %r", e)
+            __logger__.error("ERROR: Request timed out, responding 408")
             self.send_error(HTTPStatus.REQUEST_TIMEOUT)
             self.close_connection = True
             return
