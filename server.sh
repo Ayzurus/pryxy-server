@@ -9,6 +9,6 @@ host="localhost"
 port="80"
 proto="http"
 directory="$(pwd)/example/"
-python src/proxyserver.py -a $host -p $port -x $proto -d $directory
+python -OO src/proxyserver.py -a $host -p $port -x $proto -d $directory
 echo "press any key to continue..."
 read -rsn1

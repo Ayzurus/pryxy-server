@@ -11,17 +11,17 @@ ___________________
 by:
 Ayzurus
 """
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
-import safeprint
 import handlers.jsonrules
 import http.client
 from http.server import BaseHTTPRequestHandler
 from http import HTTPStatus
 from socket import timeout
+from utils import safeprint
 
 class HttpHandler(BaseHTTPRequestHandler):
-    server_version = "HttpHandler/" + __version__
+    server_version = "Pryxy-HttpHandler/" + __version__
     WILDCARD = "*"
 
     def __init__(self, *args, rules=None, **kwargs):

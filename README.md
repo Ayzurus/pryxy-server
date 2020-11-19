@@ -13,6 +13,7 @@ pyinstaller to be run in any machine independent of python version or installati
      1. [Running Pryxy](#running-pryxy)
      2. [Configuring Rules](#configuring-rules)
      3. [Automated Responses](#automated-responses)
+     4. [Shutting Down](#shutting-down-the-server)
   4. [License](#4-license)
 
 ## 1. Building
@@ -66,6 +67,7 @@ All arguments are optional, and when one is not present, its default value is us
 * **-x, --proto** = The protocol for the proxy to listen to (currently only supports HTTP). defaults to `http`
 * **-d, --directory** = The effective directory containing the `.json` rule files for the handlers. Defaults to `./`
 * **-v, --verbose** = Print more information with the logging process. Defaults to `False`
+* **--no-block** = Will not wait for client's connection shutdown to close the server. **WARNING:** This may result in the TCP connection lingering on the client's side. Defaults to `False`
 
 ### Configuring Rules
 
@@ -152,6 +154,12 @@ With this said, there are some cases where Pryxy may respond not according to th
 * And finally, if the request's HTTP version is 2.0 or above: **505 HTTP Version Not Supported**
 
 > NOTE: This is subject to change in the future, if features to add request validations or the like are implemented
+
+### Shutting down the server
+
+Just send a `SIGINT` or `SIGTERM` to the process, either via the terminal or any `kill`-like command.
+
+> WARNING: If ussing `--no-block`, you will still need to close the client's connection for new requests on the same port.
 
 ## 4. License
 

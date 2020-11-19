@@ -9,5 +9,5 @@ set host=localhost
 set port=80
 set proto=http
 set directory=%cd%\example\
-call python src\proxyserver.py -a %host% -p %port% -x %proto% -d %directory%
+call python -OO src\proxyserver.py -a %host% -p %port% -x %proto% -d %directory%
 pause

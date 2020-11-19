@@ -9,7 +9,6 @@ by:
 Ayzurus
 """
 import json
-import safeprint
 
 _root_path = "./"
 
