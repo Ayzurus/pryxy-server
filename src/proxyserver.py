@@ -7,22 +7,25 @@ ___________________
 by:
 Ayzurus
 """
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 import sys
 import argparse
 import time
 import signal
 import socket
+import logging
 import handlers.jsonrules
 import handlers.httphandler
-from utils import safeprint
 from threading import Thread
 from socketserver import TCPServer
 
 __handlers__ = {
     "http": handlers.httphandler.HttpHandler
 }
+
+logging.basicConfig(format="[%(asctime)s] %(name)s - %(message)s")
+__logger__ = logging.getLogger("pryxy")
 
 
 class CustomTCPServer(TCPServer):
@@ -41,7 +44,6 @@ class ProxyServer(Thread, CustomTCPServer):
         Thread.__init__(self)
         CustomTCPServer.__init__(
             self, (host, port), no_block, __handlers__[proto])
-        self._active = False
         self._proto = proto
         self.setName(ProxyServer.THREAD_NAME)
         self._shutdown_signal = False
@@ -49,23 +51,25 @@ class ProxyServer(Thread, CustomTCPServer):
         signal.signal(signal.SIGTERM, self._close)
 
     def run(self):
-        safeprint.log("starting listener {}".format(str(self)))
-        self._active = True
+        __logger__.info("starting listener %s", str(self))
         self.serve_forever(ProxyServer.THREAD_POLL_INTERVAL)
-        safeprint.log("listener closed")
+        __logger__.info("listener closed")
 
     def await_shutdown(self):
         """awaits for a shutdown signal to proceed"""
-        safeprint.log("awaiting proxy shutdown...")
-        while self._active:
+        # wait an instant for the server to start
+        time.sleep(0.1)
+        __logger__.info("awaiting proxy shutdown...")
+        while not self._shutdown_signal:
+            # this thread can't block to prod for the shutdown signals
             time.sleep(ProxyServer.THREAD_POLL_INTERVAL)
 
     def _close(self, signum, frame):
         if not self._shutdown_signal:
             self._shutdown_signal = True
-            safeprint.log("received SIG %i, shutting down proxy..." % signum)
+            __logger__.info(
+                "received signal %i, shutting down proxy...", signum)
             self.shutdown()
-            self._active = False
 
     def __str__(self):
         return ProxyServer.THREAD_NAME + ("@%s:%d proto: " % self.socket.getsockname() + self._proto)
@@ -85,12 +89,12 @@ def main(args):
                         default="http", help="the proxy's protocol to work with (http only)")
     parser.add_argument("-d", "--directory", action="store", type=str,
                         default="./", help="the root directory to look for json rules")
-    parser.add_argument("-v", "--verbose", action="store_true",
-                        default=False, help="logs expressive information during execution")
+    parser.add_argument("-v", "--verbose", action="store_true", default=False,
+                        help="increasses pryxy verbosity by adding debug level logging")
     parser.add_argument("--no-block", action="store_true", default=False, help="""will not wait for client's connection shutdown to 
             close the server. WARNING: This may result in the TCP connection lingering on the client's side""")
     result_args = parser.parse_args()
-    safeprint.setup(result_args.verbose, __debug__)
+    __logger__.setLevel(logging.DEBUG if result_args.verbose else logging.INFO)
     handlers.jsonrules.setup(result_args.directory)
     pryxy = ProxyServer(result_args.host, result_args.port,
                         result_args.proto, result_args.no_block)

@@ -11,14 +11,16 @@ ___________________
 by:
 Ayzurus
 """
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 import handlers.jsonrules
+import logging
 import http.client
 from http.server import BaseHTTPRequestHandler
 from http import HTTPStatus
 from socket import timeout
-from utils import safeprint
+
+__logger__ = logging.getLogger("pryxy")
 
 
 class HttpHandler(BaseHTTPRequestHandler):
@@ -33,17 +35,30 @@ class HttpHandler(BaseHTTPRequestHandler):
         if isinstance(code, HTTPStatus):
             code = code.value
         if isinstance(code, int):
-            self.log_message('%s Response %s - "%s" %s',
-                             self.address_string(), str(code), self.requestline, str(size))
+            self.log_message('%s:%i <- Response %s - "%s" %s',
+                             self.client_address[0], self.client_address[1], str(code), self.requestline, str(size))
         else:
-            self.log_message('%s Request "%s" %s',
-                             self.address_string(), self.requestline, str(size))
+            self.log_message('%s:%i -> Request "%s" %s',
+                             self.client_address[0], self.client_address[1], self.requestline, str(size))
 
     def log_error(self, format, *args):
         self.log_message(format, *args)
 
     def log_message(self, format, *args):
-        safeprint.log(format % args)
+        __logger__.info(format, *args)
+
+    def _log_headers(self, headers):
+        """logs all the headers and body of a message, purely for verbose purposes"""
+        if __logger__.isEnabledFor(logging.DEBUG):
+            headers_str = ""
+            if isinstance(headers, self.MessageClass):
+                for header in headers:
+                    headers_str += "%s: %s\n" % (header, headers.get(header, ""))
+            elif isinstance(headers, list):
+                for header in headers[1:]:
+                    headers_str += header.decode('iso-8859-1')
+            if headers_str:
+                __logger__.debug("headers:\n%s", headers_str)
 
     def parse_request(self):
         """Parse a request (internal).
@@ -62,6 +77,7 @@ class HttpHandler(BaseHTTPRequestHandler):
         requestline = str(self.raw_requestline, 'iso-8859-1')
         requestline = requestline.rstrip('\r\n')
         self.requestline = requestline
+        self.log_request()
         words = requestline.split()
         # the request requires at least the command and path of the URI
         if len(words) < 2:
@@ -118,6 +134,7 @@ class HttpHandler(BaseHTTPRequestHandler):
                 self.request_version >= "HTTP/1.1"):
             if not self.handle_expect_100():
                 return False
+        self._log_headers(self.headers)
         return True
 
     def _fetch_response_rules(self):
@@ -137,13 +154,16 @@ class HttpHandler(BaseHTTPRequestHandler):
                         else:
                             uri = rule[0:uri_wildcard_id]
                             uri_found = uri_requestline.startswith(uri)
-                    else:
+                    else:  
                         uri_found = uri_requestline == uri
                     if uri_found:
+                        __logger__.debug("http response rule found")
                         return self._rules[rule]
             # If no rules match the request, test if there is a wildcard rule DEFAULT
             if not uri_found and HttpHandler.WILDCARD in self._rules:
+                __logger__.debug("NO specific http response rule found, using '*'")
                 return self._rules[HttpHandler.WILDCARD]
+        __logger__.debug("NO http response rule found, sending 501")
         return None
 
     def _respond(self):
@@ -152,7 +172,6 @@ class HttpHandler(BaseHTTPRequestHandler):
         self.body = None
         # If any rule matched, send the rule's response
         if response:
-            safeprint.debug("http response rule = %s" % response)
             code = int(response["code"])
             if code > 399:
                 self.send_error(
@@ -166,6 +185,7 @@ class HttpHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length", str(len(self.body)))
                 # TODO detect Content-Type automatically, but only allow text types
                 # TODO allow file paths to send files instead of only text types
+            self._log_headers(self._headers_buffer)
             self.end_headers()
             if self.body:
                 self.wfile.write(self.body.encode("UTF-8", "strict"))
