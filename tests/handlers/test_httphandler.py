@@ -15,12 +15,10 @@ class MockHttpHandler(HttpHandler):
     def __init__(self):
         self._rules = jsonrules.get("http")
         self.rfile = open(read_path, "rb")
-        self.wfile = open(write_path, "wb")
         self.client_address = ("127.0.0.1", 80)
     
     def close(self):
         self.rfile.close()
-        self.wfile.close()
         os.remove(read_path)
         os.remove(write_path)
 
@@ -38,31 +36,39 @@ def testHttpHandlerRespondGetOk(capsys):
     """
     handler.raw_requestline = "GET / HTTP/1.1\r\n".encode("iso-8859-1", "strict")
     assert handler.parse_request()
+    handler.wfile = open(write_path, "wb")
     handler._respond()
-    cap = capsys.readouterr()
-    assert cap.out.find("Response 200") != -1
+    handler.wfile.close()
+    with open(write_path, "rb") as result:
+        assert "HTTP/1.0 200 OK".encode("iso-8859-1", "strict") in result.read()
 
 def testHttpHandlerBadRequest(capsys):
     """responding with 400 when the request URI is incomplete"""
     handler.raw_requestline = "PUT\r\n".encode("iso-8859-1", "strict")
+    handler.wfile = open(write_path, "wb")
     assert not handler.parse_request()
-    cap = capsys.readouterr()
-    assert cap.out.find("Response 400") != -1
+    handler.wfile.close()
+    with open(write_path, "rb") as result:
+        assert "<p>Error code: 400</p>".encode("iso-8859-1", "strict") in result.read()
 
 def testHttpHandlerNotImplemented(capsys):
     """responding with 501 when no rule found"""
     handler.raw_requestline = "DELETE / HTTP/1.1\r\n".encode("iso-8859-1", "strict")
     assert handler.parse_request()
+    handler.wfile = open(write_path, "wb")
     handler._respond()
-    cap = capsys.readouterr()
-    assert cap.out.find("Response 501") != -1
+    handler.wfile.close()
+    with open(write_path, "rb") as result:
+        assert "HTTP/1.0 501 No rules found for the given Request/URI".encode("iso-8859-1", "strict") in result.read()
 
 def testHttpHandlerUnsupportedVersion(capsys):
     """responding with 505 to an http version >= 2.0"""
     handler.raw_requestline = "GET / HTTP/2.0\r\n".encode("iso-8859-1", "strict")
+    handler.wfile = open(write_path, "wb")
     assert not handler.parse_request()
-    cap = capsys.readouterr()
-    assert cap.out.find("Response 505") != -1
+    handler.wfile.close()
+    with open(write_path, "rb") as result:
+        assert "<p>Error code: 505</p>".encode("iso-8859-1", "strict") in result.read()
 
 def teardown_module():
     handler.close()
