@@ -1,6 +1,6 @@
 # <img src="./pryxy.svg" width=8%> Pryxy Server
 
-Cross platform simple python proxy server for HTTP, up to version 1.1, related application testing and development.
+Cross platform simple python server for HTTP, up to version 1.1, related application testing and development.
 
 Pryxy can be executed in any OS using python 3 OR bundled to a standalone executable via
 pyinstaller to be run in any machine independent of python version or installation.
